@@ -1,0 +1,64 @@
+// Import Vuetify variables
+@import './variables.scss';
+
+// Global styles for Memory Dashboard
+body {
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+// Smooth transitions
+* {
+  transition: $app-transition;
+}
+
+// Custom scrollbar
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+// Page transitions
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+// Memory-specific utility classes
+.memory-card {
+  border-left: 4px solid $memory-accent;
+}
+
+.memory-highlight {
+  background-color: rgba($memory-primary, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.memory-code {
+  font-family: 'Monaco', 'Consolas', monospace;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
