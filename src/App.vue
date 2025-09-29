@@ -47,23 +47,47 @@
     <!-- Main Content -->
     <v-main>
       <v-container fluid>
-        <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
+        <!-- Global Error Boundary -->
+        <ErrorBoundary
+          :allow-retry="true"
+          :allow-report-error="true"
+          @retry="handleGlobalRetry"
+        >
+          <router-view v-slot="{ Component }">
+            <transition name="fade" mode="out-in">
+              <component :is="Component" />
+            </transition>
+          </router-view>
+        </ErrorBoundary>
       </v-container>
     </v-main>
+
+    <!-- Global Error Notifications -->
+    <ErrorNotification
+      v-for="error in recentErrors"
+      :key="error.id"
+      :error="error"
+      :timeout="getNotificationTimeout(error)"
+      @dismiss="clearError(error.id)"
+      @retry="handleErrorRetry(error)"
+    />
   </v-app>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, provide } from 'vue'
 import { useTheme } from 'vuetify'
 import { useAppStore } from '@/stores/app'
+import { useErrorHandler } from '@/composables/useErrorHandler'
+import ErrorBoundary, { ErrorReporterKey } from '@/components/ErrorBoundary.vue'
+import ErrorNotification from '@/components/ErrorNotification.vue'
 
 const appStore = useAppStore()
 const theme = useTheme()
+const { recentErrors, clearError, errorReporter } = useErrorHandler()
+
+// Provide error reporter for ErrorBoundary
+provide(ErrorReporterKey, errorReporter)
 
 const navigationItems = [
   { name: 'Dashboard', title: 'Dashboard', icon: 'mdi-view-dashboard', to: '/' },
@@ -107,6 +131,40 @@ function toggleDrawer() {
 function toggleTheme() {
   appStore.toggleTheme()
   theme.global.name.value = appStore.theme
+}
+
+// Error handling functions
+function handleGlobalRetry() {
+  console.log('Global retry triggered')
+  // Force refresh of the current route
+  window.location.reload()
+}
+
+function getNotificationTimeout(error: any): number {
+  // Longer timeout for critical errors
+  if (!error.recoverable) return 15000
+
+  // Variable timeout based on error type
+  const timeouts = {
+    network: 12000,
+    validation: 6000,
+    authentication: 10000,
+    authorization: 10000,
+    not_found: 8000,
+    server_error: 15000,
+    client_error: 8000,
+    timeout: 10000,
+    rate_limit: 12000,
+    unknown: 8000
+  }
+
+  return timeouts[error.type] || 8000
+}
+
+async function handleErrorRetry(error: any) {
+  console.log('Retrying error:', error.id)
+  // This would typically trigger a retry of the original failed action
+  // The specific implementation depends on how the error was originally handled
 }
 </script>
 

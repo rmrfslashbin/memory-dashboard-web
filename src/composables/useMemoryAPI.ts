@@ -1,181 +1,187 @@
-import { ref, type Ref } from 'vue'
+import { ref } from 'vue'
 import { memoryAPI } from '@/utils/memory-api'
-import type {
-  SystemInfo,
-  Collection,
-  CollectionDetails,
-  Memory,
-  SearchQuery,
-  SearchResult,
-  Metrics,
-  APIError,
-} from '@/types/memory-api'
+import { useErrorHandler } from '@/composables/useErrorHandler'
+import type { SearchQuery, SearchResult } from '@/types/memory-api'
+
+interface SearchParams {
+  query: string
+  collections?: string[]
+  limit?: number
+  sortBy?: string
+  minScore?: number
+  searchMode?: string
+}
 
 export function useMemoryAPI() {
   const loading = ref(false)
-  const error: Ref<APIError | null> = ref(null)
+  const error = ref<string | null>(null)
+  const { handleError, attemptRecovery } = useErrorHandler()
 
-  const setLoading = (value: boolean) => {
-    loading.value = value
-  }
-
-  const setError = (err: APIError | null) => {
-    error.value = err
-  }
-
-  const clearError = () => {
+  async function searchMemories(params: SearchParams) {
+    loading.value = true
     error.value = null
-  }
 
-  // System Info
-  const getSystemInfo = async (): Promise<SystemInfo | null> => {
-    setLoading(true)
-    clearError()
+    const retryFn = async () => {
+      const searchQuery: SearchQuery = {
+        query: params.query,
+        collections: params.collections || [],
+        limit: params.limit || 10,
+        sort_by: params.sortBy || 'score',
+        min_score: params.minScore || 0,
+        search_mode: params.searchMode || 'semantic'
+      }
+
+      const response = await memoryAPI.searchMemories(searchQuery)
+
+      if (!response.success) {
+        const apiError = new Error(response.error?.message || 'Search failed')
+        // Attach additional error info for better error handling
+        ;(apiError as any).status = response.error?.code
+        ;(apiError as any).details = response.error?.details
+        throw apiError
+      }
+
+      return response.data
+    }
 
     try {
-      const response = await memoryAPI.getSystemInfo()
-      if (response.success && response.data) {
-        return response.data
-      } else {
-        setError(response.error || { error: 'Unknown', message: 'Failed to get system info' })
-        return null
-      }
+      return await retryFn()
     } catch (err) {
-      setError({ error: 'Network Error', message: 'Failed to connect to API' })
-      return null
+      const appError = await handleError(err as Error, {
+        component: 'useMemoryAPI',
+        action: 'searchMemories',
+        data: params,
+        retry: retryFn
+      })
+
+      error.value = appError.userMessage
+      throw err
     } finally {
-      setLoading(false)
+      loading.value = false
     }
   }
 
-  // Collections
-  const getCollections = async (): Promise<Collection[] | null> => {
-    setLoading(true)
-    clearError()
+  async function getCollections() {
+    loading.value = true
+    error.value = null
 
     try {
       const response = await memoryAPI.getCollections()
-      if (response.success && response.data) {
-        return response.data
-      } else {
-        setError(response.error || { error: 'Unknown', message: 'Failed to get collections' })
-        return null
+
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to load collections')
       }
+
+      return { collections: response.data }
+
     } catch (err) {
-      setError({ error: 'Network Error', message: 'Failed to connect to API' })
-      return null
+      error.value = err instanceof Error ? err.message : 'Failed to load collections'
+      throw err
     } finally {
-      setLoading(false)
+      loading.value = false
     }
   }
 
-  const getCollectionDetails = async (): Promise<CollectionDetails[] | null> => {
-    setLoading(true)
-    clearError()
+  async function getCollectionDetails() {
+    loading.value = true
+    error.value = null
 
     try {
       const response = await memoryAPI.getCollectionDetails()
-      if (response.success && response.data) {
-        return response.data
-      } else {
-        setError(response.error || { error: 'Unknown', message: 'Failed to get collection details' })
-        return null
+
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to load collection details')
       }
+
+      return response.data
+
     } catch (err) {
-      setError({ error: 'Network Error', message: 'Failed to connect to API' })
-      return null
+      error.value = err instanceof Error ? err.message : 'Failed to load collection details'
+      throw err
     } finally {
-      setLoading(false)
+      loading.value = false
     }
   }
 
-  // Memories
-  const getMemories = async (
-    collections?: string[],
-    limit: number = 10,
-    offset: number = 0
-  ): Promise<{ memories: Memory[]; total: number } | null> => {
-    setLoading(true)
-    clearError()
+  async function getSystemInfo() {
+    loading.value = true
+    error.value = null
 
     try {
-      const response = await memoryAPI.getMemories(collections, limit, offset)
-      if (response.success && response.data) {
-        return response.data
-      } else {
-        setError(response.error || { error: 'Unknown', message: 'Failed to get memories' })
-        return null
+      const response = await memoryAPI.getSystemInfo()
+
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to load system info')
       }
+
+      return response.data
+
     } catch (err) {
-      setError({ error: 'Network Error', message: 'Failed to connect to API' })
-      return null
+      error.value = err instanceof Error ? err.message : 'Failed to load system info'
+      throw err
     } finally {
-      setLoading(false)
+      loading.value = false
     }
   }
 
-  // Search
-  const searchMemories = async (query: SearchQuery): Promise<SearchResult | null> => {
-    setLoading(true)
-    clearError()
-
-    try {
-      const response = await memoryAPI.searchMemories(query)
-      if (response.success && response.data) {
-        return response.data
-      } else {
-        setError(response.error || { error: 'Unknown', message: 'Search failed' })
-        return null
-      }
-    } catch (err) {
-      setError({ error: 'Network Error', message: 'Failed to connect to API' })
-      return null
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Metrics
-  const getMetrics = async (): Promise<Metrics | null> => {
-    setLoading(true)
-    clearError()
+  async function getMetrics() {
+    loading.value = true
+    error.value = null
 
     try {
       const response = await memoryAPI.getMetrics()
-      if (response.success && response.data) {
-        return response.data
-      } else {
-        setError(response.error || { error: 'Unknown', message: 'Failed to get metrics' })
-        return null
+
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to load metrics')
       }
+
+      return response.data
+
     } catch (err) {
-      setError({ error: 'Network Error', message: 'Failed to connect to API' })
-      return null
+      error.value = err instanceof Error ? err.message : 'Failed to load metrics'
+      throw err
     } finally {
-      setLoading(false)
+      loading.value = false
     }
   }
 
-  // Health Check
-  const healthCheck = async (): Promise<boolean> => {
+  async function exportSearchResults(results: any[], metadata: any): Promise<void> {
     try {
-      const response = await memoryAPI.healthCheck()
-      return response.success
+      const exportData = {
+        query: metadata.query,
+        collections: metadata.collections,
+        options: metadata.options,
+        timestamp: new Date().toISOString(),
+        results: results
+      }
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+        type: 'application/json'
+      })
+
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `memory-search-results-${new Date().toISOString().split('T')[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
     } catch (err) {
-      return false
+      error.value = err instanceof Error ? err.message : 'Failed to export results'
+      throw err
     }
   }
 
   return {
     loading,
     error,
-    clearError,
-    getSystemInfo,
+    searchMemories,
     getCollections,
     getCollectionDetails,
-    getMemories,
-    searchMemories,
+    getSystemInfo,
     getMetrics,
-    healthCheck,
+    exportSearchResults
   }
 }
