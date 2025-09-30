@@ -182,7 +182,9 @@ function selectNone() {
   emit('update:selectedCollections', new Set())
 }
 
-function formatCount(count: number): string {
+function formatCount(count: number | undefined): string {
+  if (count === undefined || count === null) return '0'
+
   if (count >= 1000000) {
     return `${(count / 1000000).toFixed(1)}M`
   } else if (count >= 1000) {
@@ -191,7 +193,9 @@ function formatCount(count: number): string {
   return count.toString()
 }
 
-function getStatusColor(status: string): string {
+function getStatusColor(status: string | undefined): string {
+  if (!status) return 'grey'
+
   switch (status.toLowerCase()) {
     case 'green':
     case 'ready':

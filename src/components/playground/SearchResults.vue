@@ -246,6 +246,73 @@
         </div>
       </div>
     </v-card-text>
+
+    <!-- Details Dialog -->
+    <v-dialog v-model="detailsDialog" max-width="800">
+      <v-card v-if="selectedResult">
+        <v-card-title class="d-flex justify-space-between align-center">
+          <span>Memory Details</span>
+          <v-btn icon="mdi-close" variant="text" @click="detailsDialog = false" />
+        </v-card-title>
+
+        <v-card-text>
+          <div class="mb-4">
+            <h3 class="text-subtitle-1 mb-2">ID</h3>
+            <code class="text-body-2">{{ selectedResult.id }}</code>
+          </div>
+
+          <div class="mb-4">
+            <h3 class="text-subtitle-1 mb-2">Content</h3>
+            <pre class="text-body-2 whitespace-pre-wrap pa-3" style="background: rgba(0,0,0,0.05); border-radius: 4px;">{{ selectedResult.content }}</pre>
+          </div>
+
+          <div class="mb-4">
+            <h3 class="text-subtitle-1 mb-2">Score</h3>
+            <v-chip :color="getScoreColor(selectedResult.score)" size="small">
+              {{ formatScore(selectedResult.score) }}
+            </v-chip>
+          </div>
+
+          <div v-if="selectedResult.type" class="mb-4">
+            <h3 class="text-subtitle-1 mb-2">Type</h3>
+            <v-chip size="small">{{ selectedResult.type }}</v-chip>
+          </div>
+
+          <div v-if="selectedResult.collections && selectedResult.collections.length > 0" class="mb-4">
+            <h3 class="text-subtitle-1 mb-2">Collections</h3>
+            <div class="d-flex flex-wrap gap-2">
+              <v-chip v-for="col in selectedResult.collections" :key="col" size="small">
+                {{ col }}
+              </v-chip>
+            </div>
+          </div>
+
+          <div v-if="selectedResult.metadata" class="mb-4">
+            <h3 class="text-subtitle-1 mb-2">Metadata</h3>
+            <v-card variant="outlined">
+              <v-card-text>
+                <pre class="text-caption">{{ JSON.stringify(selectedResult.metadata, null, 2) }}</pre>
+              </v-card-text>
+            </v-card>
+          </div>
+
+          <div v-if="selectedResult.created_at" class="mb-4">
+            <h3 class="text-subtitle-1 mb-2">Created At</h3>
+            <p class="text-body-2">{{ formatDate(selectedResult.created_at) }}</p>
+          </div>
+
+          <div v-if="selectedResult.updated_at" class="mb-4">
+            <h3 class="text-subtitle-1 mb-2">Updated At</h3>
+            <p class="text-body-2">{{ formatDate(selectedResult.updated_at) }}</p>
+          </div>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer />
+          <v-btn color="primary" @click="detailsDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-card>
 </template>
 
@@ -311,7 +378,8 @@ function truncateQuery(query: string): string {
   return query.length > 50 ? `${query.substring(0, 50)}...` : query
 }
 
-function truncateContent(content: string): string {
+function truncateContent(content: string | undefined): string {
+  if (!content) return 'No content available'
   return content.length > 150 ? `${content.substring(0, 150)}...` : content
 }
 
@@ -323,9 +391,12 @@ function copyResultContent(content: string) {
   navigator.clipboard.writeText(content)
 }
 
+const detailsDialog = ref(false)
+const selectedResult = ref<SearchResult | null>(null)
+
 function openResultDetails(result: SearchResult) {
-  // Open result details in a modal or new view
-  console.log('Opening result details:', result)
+  selectedResult.value = result
+  detailsDialog.value = true
 }
 
 function loadMoreResults() {

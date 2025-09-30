@@ -20,8 +20,11 @@ export function useWebSocket() {
     connectionStatus.value = 'connecting'
 
     try {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const wsUrl = `${protocol}//${window.location.hostname}:8080/ws`
+      // Get API URL from environment or app store
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+      const url = new URL(apiBaseUrl)
+      const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+      const wsUrl = `${protocol}//${url.host}/ws`
 
       ws.value = new WebSocket(wsUrl)
 

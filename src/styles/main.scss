@@ -1,5 +1,5 @@
-// Import Vuetify variables
-@import './variables.scss';
+// Import Vuetify variables using @use instead of deprecated @import
+@use './variables.scss' as *;
 
 // Global styles for Memory Dashboard
 body {

@@ -75,11 +75,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, provide } from 'vue'
+import { computed, provide, onMounted } from 'vue'
 import { useTheme } from 'vuetify'
 import { useAppStore } from '@/stores/app'
 import { useErrorHandler } from '@/composables/useErrorHandler'
-import ErrorBoundary, { ErrorReporterKey } from '@/components/ErrorBoundary.vue'
+import { ErrorReporterKey } from '@/types/errors'
+import { memoryAPI } from '@/utils/memory-api'
+import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import ErrorNotification from '@/components/ErrorNotification.vue'
 
 const appStore = useAppStore()
@@ -88,6 +90,24 @@ const { recentErrors, clearError, errorReporter } = useErrorHandler()
 
 // Provide error reporter for ErrorBoundary
 provide(ErrorReporterKey, errorReporter)
+
+// Check API connection on mount
+onMounted(async () => {
+  appStore.setConnectionStatus('connecting')
+  try {
+    const response = await memoryAPI.healthCheck()
+    if (response.success) {
+      appStore.setConnectionStatus('connected')
+      console.log('Connected to Memory API:', appStore.apiUrl)
+    } else {
+      appStore.setConnectionStatus('disconnected')
+      console.warn('Failed to connect to Memory API:', response.error)
+    }
+  } catch (error) {
+    appStore.setConnectionStatus('disconnected')
+    console.error('Error connecting to Memory API:', error)
+  }
+})
 
 const navigationItems = [
   { name: 'Dashboard', title: 'Dashboard', icon: 'mdi-view-dashboard', to: '/' },

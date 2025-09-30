@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import type { ErrorReporter, ErrorContext } from '@/components/ErrorBoundary.vue'
+import type { ErrorReporter, ErrorContext } from '@/types/errors'
 
 export interface AppError {
   id: string

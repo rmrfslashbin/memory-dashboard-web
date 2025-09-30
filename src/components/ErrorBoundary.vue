@@ -93,27 +93,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onErrorCaptured, provide, inject } from 'vue'
+import { ref, onErrorCaptured, provide, inject } from 'vue'
 import { useRouter } from 'vue-router'
-import type { InjectionKey } from 'vue'
-
-// Error reporting interface
-export interface ErrorReporter {
-  reportError(error: Error, context: ErrorContext): Promise<void>
-}
-
-export interface ErrorContext {
-  componentName: string
-  errorId: string
-  timestamp: string
-  userAgent: string
-  url: string
-  userId?: string
-  sessionId?: string
-}
-
-// Injection key for error reporter
-export const ErrorReporterKey: InjectionKey<ErrorReporter> = Symbol('ErrorReporter')
+import { ErrorReporterKey, type ErrorReporter, type ErrorContext } from '@/types/errors'
 
 interface Props {
   fallbackComponent?: string
@@ -130,6 +112,10 @@ const props = withDefaults(defineProps<Props>(), {
   errorTitle: 'Something went wrong',
   errorMessage: 'An unexpected error occurred. Please try again or contact support if the problem persists.'
 })
+
+const emit = defineEmits<{
+  retry: []
+}>()
 
 const router = useRouter()
 const errorReporter = inject(ErrorReporterKey)

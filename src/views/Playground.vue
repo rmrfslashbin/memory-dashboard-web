@@ -103,6 +103,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, watch, computed } from 'vue'
+import { useAppStore } from '@/stores/app'
 import { useWebSocket } from '@/composables/useWebSocket'
 import { useMemoryAPI } from '@/composables/useMemoryAPI'
 import { useSearchHistory } from '@/composables/useSearchHistory'
@@ -125,8 +126,10 @@ import AnalyticsDashboard from '@/components/playground/AnalyticsDashboard.vue'
 import CollaborativeDashboard from '@/components/playground/CollaborativeDashboard.vue'
 
 // Composables
-const { connectWebSocket, connectionStatus, sendMessage } = useWebSocket()
-const { searchMemories, getCollections, exportSearchResults } = useMemoryAPI()
+const appStore = useAppStore()
+const connectionStatus = computed(() => appStore.connectionStatus)
+const { connectWebSocket, sendMessage } = useWebSocket()
+const { searchMemories, getCollectionDetails, exportSearchResults } = useMemoryAPI()
 const { queryHistory, addToHistory, clearHistory } = useSearchHistory()
 const { searchTemplates, savedSearches, saveTemplate, saveSearch, deleteTemplate: deleteTemplateFromStore, deleteSavedSearch: deleteSavedSearchFromStore } = useSearchTemplates()
 const { recordSearch } = useSearchAnalytics()
@@ -182,8 +185,14 @@ async function performSearch() {
     }
 
     const results = await searchMemories(params)
-    searchResults.value = results.memories || []
-    resultsMetadata.value = results.metadata || {}
+    // API returns { results: [...], query, collection, limit }
+    searchResults.value = results.results || results.memories || []
+    resultsMetadata.value = {
+      query: results.query,
+      collection: results.collection,
+      limit: results.limit,
+      total: searchResults.value.length
+    }
 
     const endTime = performance.now()
     const queryTime = endTime - startTime
@@ -246,18 +255,19 @@ async function performRealtimeSearch() {
     }
 
     const results = await searchMemories(params)
-    realtimeResults.value = results
+    // API returns { results: [...] }
+    realtimeResults.value = results.results || results.memories || []
 
     const endTime = performance.now()
     const queryTime = endTime - startTime
 
     // Record realtime search analytics (if results exist)
-    if (results.memories?.length > 0) {
-      const avgScore = results.memories.reduce((sum, r) => sum + (r.score || 0), 0) / results.memories.length
+    if (realtimeResults.value?.length > 0) {
+      const avgScore = realtimeResults.value.reduce((sum, r) => sum + (r.score || 0), 0) / realtimeResults.value.length
 
       recordSearch({
         queryTime,
-        resultCount: results.memories.length,
+        resultCount: realtimeResults.value.length,
         searchMode: 'realtime',
         collections: Array.from(selectedCollections.value),
         minScore: 0,
@@ -276,8 +286,20 @@ async function performRealtimeSearch() {
 async function refreshCollections() {
   collectionsLoading.value = true
   try {
-    const result = await getCollections()
-    collections.value = result.collections || []
+    const result = await getCollectionDetails()
+    // API returns { collections: [...] }
+    const collectionsList = result?.collections || result || []
+
+    // Transform to expected format with name and counts
+    collections.value = collectionsList.map((col: any) => ({
+      name: col.name || col,
+      description: col.description,
+      vectorCount: typeof col.memory_count === 'number' ? col.memory_count : 0,
+      indexedVectorCount: typeof col.memory_count === 'number' ? col.memory_count : 0,
+      status: col.status,
+      type: col.type,
+      tags: col.tags || []
+    }))
   } catch (error) {
     console.error('Error loading collections:', error)
   } finally {
